@@ -129,7 +129,7 @@ public class MenuPanel extends JPanel {
         music.playSFX("click.wav");
         anim.stop();
         music.playMusic("game-music.wav", true);
-        frame.showPanel(new GamePanel(frame, music));
+        frame.showPanel(new GamePanel(frame, music, true));
     }
 
     // ----------------------------------------------------------------- render

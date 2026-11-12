@@ -37,6 +37,8 @@ cliff and dodge everything the mountain throws down at you.
   volume settings are kept between launches.
 - **Juice:** retro sound effects generated in code (rumbles, hoof clatter, a
   goat bleat), screen shake, dust and snow particles, and a 3-2-1 countdown.
+- **Briefing card:** after PLAY, a quick how-to-play card appears. The
+  countdown starts when you press START CLIMB or Enter.
 - **Screens:**
   - Home, with stats and a skin picker
   - How to Play

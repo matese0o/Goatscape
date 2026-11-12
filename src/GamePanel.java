@@ -55,6 +55,10 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
     private final List<Particle> particles = new ArrayList<>();
 
     private boolean gameOver, paused, newBest;
+    /** Showing the how-to-play card; the countdown starts when the player presses START. */
+    private boolean briefing;
+    private Rock briefRock, briefBoulder;
+    private IcePatch briefIce;
     private Skin unlockedSkin; // a skin this run unlocked, if any
 
     private double climbed; // frames climbed (slower in slow-mo); altitude = climbed / 10
@@ -74,10 +78,17 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 
     private boolean movingLeft, movingRight, movingUp, movingDown;
 
-    private final PixelButton resumeBtn, playAgainBtn, menuBtn;
+    private final PixelButton resumeBtn, playAgainBtn, menuBtn, startBtn;
 
+    /** Starts straight into the countdown (used by PLAY AGAIN). */
     public GamePanel(GameFrame frame, MusicManager music) {
+        this(frame, music, false);
+    }
+
+    /** @param showBriefing show the how-to-play card first, with a START button */
+    public GamePanel(GameFrame frame, MusicManager music, boolean showBriefing) {
         this.frame = frame;
+        this.briefing = showBriefing;
         this.music = music;
 
         setFocusable(true);
@@ -88,6 +99,13 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
         resumeBtn = button("RESUME", PixelButton.Style.GREEN, PixelButton.Icon.PLAY);
         playAgainBtn = button("PLAY AGAIN", PixelButton.Style.GREEN, PixelButton.Icon.PLAY);
         menuBtn = button("MENU", PixelButton.Style.STONE, PixelButton.Icon.BACK);
+        startBtn = new PixelButton("START CLIMB", PixelButton.Style.GREEN, PixelButton.Icon.PLAY, 40f);
+        startBtn.setSize(320, 72);
+        add(startBtn);
+        startBtn.addActionListener(e -> {
+            music.playSFX("click.wav");
+            startCountdown();
+        });
         resumeBtn.addActionListener(e -> {
             music.playSFX("click.wav");
             setPaused(false);
@@ -103,7 +121,7 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 
         timer = new Timer(16, this);
         timer.start();
-        music.playSFX("beep");
+        if (!briefing) music.playSFX("beep");
 
         SwingUtilities.invokeLater(this::requestFocusInWindow);
 
@@ -124,6 +142,15 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
         b.setVisible(false);
         add(b);
         return b;
+    }
+
+    private void startCountdown() {
+        if (!briefing) return;
+        briefing = false;
+        countdown = 3 * COUNTDOWN_STEP;
+        music.playSFX("beep");
+        layoutButtons();
+        SwingUtilities.invokeLater(this::requestFocusInWindow);
     }
 
     private void restart() {
@@ -179,6 +206,8 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
     }
 
     private void layoutButtons() {
+        startBtn.setVisible(briefing);
+        startBtn.setLocation((getWidth() - startBtn.getWidth()) / 2, briefingTop() + BRIEF_H + 18);
         resumeBtn.setVisible(paused && !gameOver);
         playAgainBtn.setVisible(gameOver);
         menuBtn.setVisible(paused || gameOver);
@@ -194,7 +223,7 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
     @Override
     public void actionPerformed(ActionEvent e) {
         tick++;
-        if (!paused && !gameOver && player != null) {
+        if (!paused && !gameOver && !briefing && player != null) {
             if (countdown > 0) updateCountdown();
             else updateGame();
         }
@@ -347,19 +376,19 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
     // ---------------------------------------------------------------- hazards
 
     private double fallSpeed(int alt) {
-        return 6 + Math.min(8, alt / 60.0);
+        return 4.5 + Math.min(6, alt / 100.0);
     }
 
     private void spawnHazards(int alt, double ws, int left, int right) {
         double widthFactor = (right - left) / (double) BASE_PLAY_W;
-        double ramp = 1 + Math.min(2.0, alt / 250.0); // up to 3x as many rocks
-        if (rand.nextDouble() < widthFactor * ramp / 40.0 * ws) queueRock(alt, left, right);
+        double ramp = 1 + Math.min(1.2, alt / 400.0); // up to 2.2x as many rocks
+        if (rand.nextDouble() < widthFactor * ramp / 50.0 * ws) queueRock(alt, left, right);
 
-        if (alt >= 200 && rand.nextDouble() < ws && --nextAvalanche <= 0) {
-            int gapW = Player.WIDTH * 2 + 40;
+        if (alt >= 300 && rand.nextDouble() < ws && --nextAvalanche <= 0) {
+            int gapW = Player.WIDTH * 3 + 40;
             int gapX = left + rand.nextInt(Math.max(1, right - left - gapW));
-            warnings.add(new Warning(left, right, MountainArt.snap(gapX), gapW, 100));
-            nextAvalanche = 700 + rand.nextInt(500) - Math.min(300, alt / 3);
+            warnings.add(new Warning(left, right, MountainArt.snap(gapX), gapW, 130));
+            nextAvalanche = 900 + rand.nextInt(600) - Math.min(300, alt / 4);
         }
 
         if (alt >= 80 && rand.nextDouble() < ws && --nextIce <= 0) {
@@ -376,18 +405,18 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
                     : (r < 0.78 && !helmet) ? Pickup.Kind.HELMET : Pickup.Kind.SLOWMO;
             int x = left + 20 + rand.nextInt(Math.max(1, right - left - 80));
             pickups.add(new Pickup(kind, x, -40));
-            nextPickup = 360 + rand.nextInt(360);
+            nextPickup = 300 + rand.nextInt(300);
         }
     }
 
     private void queueRock(int alt, int left, int right) {
         double r = rand.nextDouble();
-        Rock.Kind kind = (alt >= 50 && r < 0.14) ? Rock.Kind.BOULDER : r < 0.42 ? Rock.Kind.PEBBLE : Rock.Kind.ROCK;
+        Rock.Kind kind = (alt >= 120 && r < 0.10) ? Rock.Kind.BOULDER : r < 0.42 ? Rock.Kind.PEBBLE : Rock.Kind.ROCK;
         int w, h, delay;
         switch (kind) {
-            case PEBBLE -> { w = 24 + rand.nextInt(10); h = 22 + rand.nextInt(8); delay = 30; }
-            case BOULDER -> { w = 88 + rand.nextInt(24); h = 80 + rand.nextInt(20); delay = 55; }
-            default -> { w = 40 + rand.nextInt(36); h = 36 + rand.nextInt(32); delay = 40; }
+            case PEBBLE -> { w = 24 + rand.nextInt(10); h = 22 + rand.nextInt(8); delay = 45; }
+            case BOULDER -> { w = 88 + rand.nextInt(24); h = 80 + rand.nextInt(20); delay = 70; }
+            default -> { w = 40 + rand.nextInt(36); h = 36 + rand.nextInt(32); delay = 55; }
         }
         int x = left + rand.nextInt(Math.max(1, right - left - w));
         for (Warning wn : warnings) {
@@ -402,7 +431,7 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
     private void launch(Warning w, int alt) {
         double fall = fallSpeed(alt);
         if (w.isAvalanche()) {
-            avalanches.add(new Avalanche(w.left, w.right, w.gapX, w.gapW, fall * 0.7));
+            avalanches.add(new Avalanche(w.left, w.right, w.gapX, w.gapW, fall * 0.6));
             music.playSFX("avalanche");
             shake = Math.max(shake, 12);
             return;
@@ -469,7 +498,7 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
             endGame();
             return;
         }
-        invuln = 100;
+        invuln = 130;
     }
 
     private void collect(Pickup p) {
@@ -550,7 +579,8 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 
         drawHud(g2d);
         if (bannerTime > 0 && !gameOver) drawBanner(g2d);
-        if (countdown > 0 || goTime > 0) drawCountdown(g2d);
+        if (briefing) drawBriefing(g2d);
+        else if (countdown > 0 || goTime > 0) drawCountdown(g2d);
 
         if (paused) {
             drawOverlay(g2d, "PAUSED", null, null, null);
@@ -639,6 +669,89 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
         MountainArt.drawShadowText(g2d, bannerSub, (getWidth() - sw) / 2, y + 94, new Color(255, 214, 102));
     }
 
+    private static final int BRIEF_W = 680, BRIEF_H = 430;
+
+    private int briefingTop() {
+        return Math.max(10, (getHeight() - BRIEF_H - 100) / 2);
+    }
+
+    /** The how-to-play card shown after PLAY, before the countdown. */
+    private void drawBriefing(Graphics2D g) {
+        g.setColor(new Color(10, 22, 38, 150));
+        g.fillRect(0, 0, getWidth(), getHeight());
+        int px = (getWidth() - BRIEF_W) / 2;
+        int py = briefingTop();
+        int cx = getWidth() / 2;
+        Color gold = new Color(255, 214, 102), soft = new Color(225, 235, 245);
+        MountainArt.drawPanel(g, px, py, BRIEF_W, BRIEF_H);
+
+        g.setFont(Fonts.get(56f));
+        centerText(g, "HOW TO PLAY", cx, py + 62, Color.WHITE);
+
+        // Controls.
+        String[][] keys = {{"ARROWS / WASD", "move"}, {"SPACE", "dash"}, {"ESC", "pause"}};
+        for (int i = 0; i < keys.length; i++) {
+            int kx = px + BRIEF_W * (2 * i + 1) / 6;
+            g.setFont(Fonts.get(28f));
+            centerText(g, keys[i][0], kx, py + 108, gold);
+            g.setFont(Fonts.get(22f));
+            centerText(g, keys[i][1], kx, py + 132, soft);
+        }
+
+        g.setColor(new Color(239, 240, 220, 70));
+        g.fillRect(px + 30, py + 150, BRIEF_W - 60, 4);
+
+        // Hazards to avoid.
+        if (briefRock == null) {
+            briefRock = new Rock(Rock.Kind.ROCK, 0, 0, 40, 36, 0, 0);
+            briefBoulder = new Rock(Rock.Kind.BOULDER, 0, 0, 52, 44, 0, 0);
+            briefIce = new IcePatch(0, 0, 60, 36, new Random(4));
+        }
+        g.setFont(Fonts.get(30f));
+        MountainArt.drawShadowText(g, "AVOID", px + 30, py + 202, new Color(0xff8a80));
+        int[] ax = {px + 200, px + 320, px + 440, px + 570};
+        int iy = py + 178;
+        placeRock(g, briefRock, ax[0], iy);
+        placeRock(g, briefBoulder, ax[1], iy);
+        HelpPanel.drawAvalancheIcon(g, ax[2] - 30, iy + 2);
+        briefIce.x = ax[3] - 30;
+        briefIce.y = iy + 4;
+        briefIce.draw(g);
+        String[] avoid = {"ROCKS", "BOULDERS", "AVALANCHES", "ICE"};
+        g.setFont(Fonts.get(20f));
+        for (int i = 0; i < 4; i++) centerText(g, avoid[i], ax[i], py + 246, soft);
+
+        // Pickups to grab.
+        g.setFont(Fonts.get(30f));
+        MountainArt.drawShadowText(g, "GRAB", px + 30, py + 302, new Color(0xa4e87a));
+        int[] gx = {px + 230, px + 390, px + 550};
+        BufferedImage[] imgs = {Pickup.EDELWEISS_IMG, Pickup.HELMET_IMG, Pickup.SLOWMO_IMG};
+        String[] grab = {"+250 POINTS", "BLOCKS 1 HIT", "SLOW MOTION"};
+        for (int i = 0; i < 3; i++) {
+            BufferedImage img = imgs[i];
+            MountainArt.drawSprite(g, img, gx[i] - img.getWidth() * 2, py + 270 + (36 - img.getHeight() * 4) / 2, 4);
+            g.setFont(Fonts.get(20f));
+            centerText(g, grab[i], gx[i], py + 334, soft);
+        }
+
+        g.setColor(new Color(239, 240, 220, 70));
+        g.fillRect(px + 30, py + 352, BRIEF_W - 60, 4);
+        g.setFont(Fonts.get(26f));
+        centerText(g, "Watch the flashing signs at the top - rocks drop there.", cx, py + 386, Color.WHITE);
+        g.setFont(Fonts.get(22f));
+        centerText(g, "3 hearts. Climb as high as you can!     ENTER = START", cx, py + 414, gold);
+    }
+
+    private static void placeRock(Graphics2D g, Rock r, int cx, int y) {
+        r.x = cx - r.width / 2.0;
+        r.y = y + (44 - r.height) / 2.0;
+        r.draw(g);
+    }
+
+    private static void centerText(Graphics2D g, String text, int cx, int y, Color c) {
+        MountainArt.drawShadowText(g, text, cx - g.getFontMetrics().stringWidth(text) / 2, y, c);
+    }
+
     private void drawCountdown(Graphics2D g2d) {
         String big = countdown > 0 ? String.valueOf((countdown + COUNTDOWN_STEP - 1) / COUNTDOWN_STEP) : "CLIMB!";
         float size = countdown > 0 ? 180f - (COUNTDOWN_STEP - 1 - (countdown - 1) % COUNTDOWN_STEP) * 0.8f : 130f;
@@ -689,6 +802,14 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 
     @Override
     public void keyPressed(KeyEvent e) {
+        if (briefing) {
+            int k = e.getKeyCode();
+            if (k == KeyEvent.VK_ENTER || k == KeyEvent.VK_SPACE) {
+                music.playSFX("click.wav");
+                startCountdown();
+            }
+            return;
+        }
         switch (e.getKeyCode()) {
             case KeyEvent.VK_LEFT, KeyEvent.VK_A -> movingLeft = true;
             case KeyEvent.VK_RIGHT, KeyEvent.VK_D -> movingRight = true;

@@ -57,7 +57,7 @@ public class HelpPanel extends ScreenPanel {
         y = hazard(g, rock, "ROCK", "watch for the ! marker", y);
         y = hazard(g, boulder, "BOULDER", "huge, bounces off the edges", y);
         drawAvalancheIcon(g, RIGHT, y - 6);
-        y = labelPair(g, "AVALANCHE", "from 200 m - find the gap", y);
+        y = labelPair(g, "AVALANCHE", "from 300 m - find the gap", y);
         ice.x = RIGHT - 6;
         ice.y = y - 10;
         ice.draw(g);
@@ -107,7 +107,7 @@ public class HelpPanel extends ScreenPanel {
         return y + 48;
     }
 
-    private static void drawAvalancheIcon(Graphics2D g, int x, int y) {
+    static void drawAvalancheIcon(Graphics2D g, int x, int y) {
         int s = MountainArt.P;
         g.setColor(new Color(0x8eaccb));
         g.fillRect(x, y + 4 * s, 15 * s, 8 * s);
