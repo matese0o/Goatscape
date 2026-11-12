@@ -36,6 +36,19 @@ public final class MountainArt {
     private static final int RIM_LIT = 0xe0b07a;
     private static final int RIM_SHADE = 0x5a3a25;
 
+    /** Altitude zone: 0 pine forest, 1 red cliffs, 2 snowfields, 3 starry summit. */
+    private static int biome = 0;
+
+    private static final int[][] SKIES = {
+        {0x3b7bc4, 0x4889cf, 0x5898d8, 0x6aa7df, 0x80b6e6, 0x99c6ec},
+        {0x3a3f8f, 0x5d4a9c, 0x8f4f95, 0xc95f80, 0xee8a6c, 0xf7b977},
+        {0x6f9fcf, 0x82afd8, 0x97bee0, 0xabcce6, 0xc2dbec, 0xd8e8f2},
+        {0x060a1c, 0x0a1029, 0x0f1836, 0x152045, 0x1c2a55, 0x253666},
+    };
+    private static final int[][] CLOUDS = {
+        {0xffffff, 0xd6e4f1}, {0xffe2cc, 0xf0a98f}, {0xffffff, 0xe3ecf4}, {0x4a5480, 0x353e66},
+    };
+
     private static BufferedImage canvas;
     private static int[] pixels;
     private static int[] backdrop;
@@ -76,6 +89,39 @@ public final class MountainArt {
 
     // -------------------------------------------------------------- background
 
+    /** Switches the scenery palette for an altitude zone. */
+    public static void setBiome(int b) {
+        if (b != biome) {
+            biome = b;
+            canvas = null; // rebuild the backdrop
+        }
+    }
+
+    /** Recolours a scenery pixel for the current altitude zone. */
+    private static int tint(int c) {
+        int r = (c >> 16) & 0xff, g = (c >> 8) & 0xff, b = c & 0xff;
+        switch (biome) {
+            case 1 -> { // warm sunset light on red sandstone
+                r = Math.min(255, r * 112 / 100 + 10);
+                g = g * 90 / 100;
+                b = b * 80 / 100;
+            }
+            case 2 -> { // frosty: desaturate and lighten
+                int grey = (r * 3 + g * 6 + b) / 10;
+                r = (r * 5 + grey * 3 + 0xe4 * 2) / 10;
+                g = (g * 5 + grey * 3 + 0xec * 2) / 10;
+                b = (b * 5 + grey * 3 + 0xf4 * 2) / 10;
+            }
+            case 3 -> { // moonlit night
+                r = r * 36 / 100;
+                g = g * 42 / 100 + 4;
+                b = b * 60 / 100 + 14;
+            }
+            default -> { }
+        }
+        return (Math.min(255, r) << 16) | (Math.min(255, g) << 8) | Math.min(255, b);
+    }
+
     public static void drawBackground(Graphics2D g, int width, int height, int scrollOffset) {
         int w = lowW(width);
         int h = (height + P - 1) / P;
@@ -101,17 +147,7 @@ public final class MountainArt {
     /** Static distant scenery: sky, two snowy ranges, valley haze and pines. */
     private static int[] buildBackdrop(int w, int h) {
         int[] out = new int[w * h];
-
-        int[] sky = {0x3b7bc4, 0x4889cf, 0x5898d8, 0x6aa7df, 0x80b6e6, 0x99c6ec};
-        int horizon = h * 62 / 100;
-        for (int y = 0; y < h; y++) {
-            for (int x = 0; x < w; x++) {
-                float t = Math.min(1f, y / (float) horizon) * (sky.length - 1);
-                int band = (int) t;
-                if (band < sky.length - 1 && t - band > BAYER[y & 3][x & 3]) band++;
-                out[y * w + x] = sky[band];
-            }
-        }
+        java.util.Arrays.fill(out, -1); // -1 = sky, filled in at the end
 
         drawRange(out, w, h, new float[][]{
             {-0.05f, 0.36f}, {0.12f, 0.24f}, {0.33f, 0.33f}, {0.55f, 0.16f},
@@ -141,7 +177,46 @@ public final class MountainArt {
         // Two rows of pines: a dim back row and a brighter front row.
         drawPines(out, w, h, valley + 6, 0x2d5f48, 0x21483a, 11);
         drawPines(out, w, h, forest + 2, 0x2f7048, 0x1d4c33, 23);
+
+        int[] sky = SKIES[biome];
+        int horizon = h * 62 / 100;
+        boolean[] isSky = new boolean[w * h];
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int i = y * w + x;
+                if (out[i] != -1) {
+                    out[i] = tint(out[i]);
+                    continue;
+                }
+                isSky[i] = true;
+                float t = Math.min(1f, y / (float) horizon) * (sky.length - 1);
+                int band = (int) t;
+                if (band < sky.length - 1 && t - band > BAYER[y & 3][x & 3]) band++;
+                int c = sky[band];
+                if (biome == 3) { // stars
+                    int k = hash(x, y * 3 + 7) % 150;
+                    if (k == 0) c = 0xffffff;
+                    else if (k == 1) c = 0x9fb4ff;
+                }
+                out[i] = c;
+            }
+        }
+        if (biome == 3) drawDisc(out, isSky, w, h, w * 78 / 100, h * 13 / 100, Math.max(4, w / 40), 0xf4f1dc, 0xd8d4bc);
+        if (biome == 1) drawDisc(out, isSky, w, h, w * 22 / 100, h * 40 / 100, Math.max(5, w / 22), 0xffe0a0, 0xffc77a);
         return out;
+    }
+
+    /** Sun or moon, painted only over sky pixels so it sits behind the ranges. */
+    private static void drawDisc(int[] out, boolean[] isSky, int w, int h, int cx, int cy, int r,
+            int lit, int shade) {
+        for (int y = cy - r; y <= cy + r; y++) {
+            for (int x = cx - r; x <= cx + r; x++) {
+                if (x < 0 || y < 0 || x >= w || y >= h || !isSky[y * w + x]) continue;
+                int dx = x - cx, dy = y - cy;
+                if (dx * dx + dy * dy > r * r) continue;
+                out[y * w + x] = (dx + dy > r / 2) ? shade : lit;
+            }
+        }
     }
 
     private static void drawRange(int[] out, int w, int h, float[][] peaks, float slope,
@@ -202,6 +277,7 @@ public final class MountainArt {
         float[][] clouds = {{0.10f, 0.10f, 1.0f}, {0.62f, 0.07f, 1.2f},
             {0.36f, 0.22f, 0.8f}, {0.86f, 0.19f, 0.9f}};
         int drift = scrollOffset / 24;
+        int[] cloud = CLOUDS[biome];
         for (float[] c : clouds) {
             float s = c[2];
             int cx = Math.floorMod(Math.round(c[0] * w) + drift, w + 40) - 30;
@@ -222,7 +298,7 @@ public final class MountainArt {
                         }
                     }
                     if (!inside) continue;
-                    put(pixels, w, h, cx + lx, cy + ly, ly > -2 ? 0xd6e4f1 : 0xffffff);
+                    put(pixels, w, h, cx + lx, cy + ly, ly > -2 ? cloud[1] : cloud[0]);
                 }
             }
         }
@@ -242,7 +318,7 @@ public final class MountainArt {
                 else if (x < left + 3) c = RIM_LIT;
                 else if (x >= right - 3) c = RIM_SHADE;
                 else c = rockTexture(x, wy);
-                pixels[y * w + x] = c;
+                pixels[y * w + x] = tint(c);
             }
         }
     }
@@ -302,7 +378,7 @@ public final class MountainArt {
         int slant = dy * 2 + dx;
         boolean rim = edge < 2.4f && !fused;
 
-        if (bestId % 9 == 0 && dy < -1) {
+        if (bestId % (biome == 2 ? 3 : 9) == 0 && dy < -1) {
             return rim && slant < 0 ? 0xffffff : 0xe1e9f0; // snow cap
         }
         if (bestId % 13 == 1 && dy < -2) {
@@ -319,62 +395,101 @@ public final class MountainArt {
 
     // ------------------------------------------------------------------- goat
 
-    private static final String[] GOAT_ROWS = {
-        "..............H.H...",
-        "..............H.H...",
-        "...............H.H..",
-        "..............KHWHK.",
-        ".........KKKKKWWWWWK",
-        "......KKKWWWWWLWWEWK",
-        "....KKWWWWWWWWLWWWWK",
-        "...KWWWWWWWWWWWLWWWN",
-        "..KWWWWWWWWWWWWLWWK.",
-        ".KWWWWWWWWWWWWWLWWK.",
-        ".KWWWWWWWWWWWWWLWK..",
-        ".KLWWWWWWWWWWWWLWK..",
-        "..KLLLLLLLLLLLLKK...",
-        "..KWWKKWWK.KWWKKWWK.",
-        "..KGWKKGWK.KGWKKGWK.",
-        "..KGGKKGGK.KGGKKGGK.",
-        "..BBBBBBBB.BBBBBBBB.",
+    // Mountain goat, facing right: curved black horns, long face and beard,
+    // shoulder hump, shaggy "pantaloons" on the legs. Two leg frames for walking.
+    private static final String[] GOAT_BODY = {
+        "....................HH......",
+        ".....................HH.....",
+        "......................HH....",
+        "......................HHKK..",
+        "..............KKKKKKKLKWWK..",
+        "......KKKKKKKKMMMMMMWWWEWK..",
+        "..KKKKWWWWWWWWWWWWWWKWWWWK..",
+        ".KWWWWWWWWWWWWWWWWWWLKWWWWK.",
+        ".KWWWWWWWWWWWWWWWWWWLWKWWWNN",
+        ".KWWWWWWWWWWWWWWWWWWLWWKWWK.",
+        ".KWWWWWWWWWWWWWWWWWWLWWWKWK.",
+        ".KLWWWWWWWWWWWWWWWWWLWWWKWK.",
+        "..KLWWWWWWWWWWWWWWWWLWWK.K..",
+        "..KGLLLLLLLLLLLLLLLLLLLK....",
+        "..KWWLWWK.....KWWWLWWK......",
+        "...KWKKWK......KWWKWWK......",
     };
 
-    private static final BufferedImage GOAT = buildGoat(false);
-    private static final BufferedImage GOAT_LEFT = buildGoat(true);
+    private static final String[][] GOAT_LEGS = {
+        {
+            "...KGKKGK......KGK.KGK......",
+            "...KGKKGK......KGK.KGK......",
+            "...BBBBBB......BBB.BBB......",
+        },
+        {
+            "..KGK..KGK....KGK...KGK.....",
+            "..KGK..KGK....KGK...KGK.....",
+            "..BBB..BBB....BBB...BBB.....",
+        },
+    };
 
-    private static BufferedImage buildGoat(boolean faceLeft) {
-        int w = GOAT_ROWS[0].length();
-        int h = GOAT_ROWS.length;
+    /** Red scarf pixels for the SCARF skin: {col, row, dark?}. */
+    private static final int[][] SCARF = {
+        {18, 6, 0}, {19, 6, 1},
+        {18, 7, 0}, {19, 7, 1}, {20, 7, 1},
+        {18, 8, 0}, {19, 8, 0}, {20, 8, 1},
+        {18, 9, 0}, {19, 9, 0}, {20, 9, 1},
+        {18, 10, 0}, {19, 10, 1},
+        {17, 10, 0}, {16, 11, 0}, {17, 11, 1}, {15, 12, 0}, {16, 12, 1}, {15, 13, 1},
+    };
+
+    /** [skin] -> [frame][0 = facing right, 1 = facing left] */
+    private static final java.util.EnumMap<Skin, BufferedImage[][]> GOATS = new java.util.EnumMap<>(Skin.class);
+
+    private static BufferedImage goat(Skin skin, int frame, boolean faceLeft) {
+        BufferedImage[][] set = GOATS.computeIfAbsent(skin, k -> new BufferedImage[][]{
+            {buildGoat(k, 0, false), buildGoat(k, 0, true)},
+            {buildGoat(k, 1, false), buildGoat(k, 1, true)},
+        });
+        return set[frame & 1][faceLeft ? 1 : 0];
+    }
+
+    private static BufferedImage buildGoat(Skin skin, int frame, boolean faceLeft) {
+        String[] rows = new String[GOAT_BODY.length + GOAT_LEGS[frame].length];
+        System.arraycopy(GOAT_BODY, 0, rows, 0, GOAT_BODY.length);
+        System.arraycopy(GOAT_LEGS[frame], 0, rows, GOAT_BODY.length, GOAT_LEGS[frame].length);
+        int w = rows[0].length();
+        int h = rows.length;
         BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
         for (int y = 0; y < h; y++) {
             for (int x = 0; x < w; x++) {
-                int argb = switch (GOAT_ROWS[y].charAt(x)) {
-                    case 'W' -> 0xfff6f6ee; // shaggy white coat
-                    case 'L' -> 0xffd2d4cc; // coat shade
-                    case 'G' -> 0xffa9adaa; // leg shade
-                    case 'K' -> 0xff3e434c; // outline
-                    case 'H' -> 0xff2a2624; // horns
-                    case 'E' -> 0xff141418; // eye
-                    case 'N' -> 0xff2f2f34; // nose
-                    case 'B' -> 0xff18181c; // hooves
-                    default -> 0;
-                };
-                img.setRGB(faceLeft ? w - 1 - x : x, y, argb);
+                img.setRGB(faceLeft ? w - 1 - x : x, y, skin.color(rows[y].charAt(x)));
+            }
+        }
+        if (skin == Skin.SCARF) {
+            for (int[] p : SCARF) {
+                int x = faceLeft ? w - 1 - p[0] : p[0];
+                img.setRGB(x, p[1], p[2] == 1 ? 0xffa3202c : 0xffe03a45);
             }
         }
         return img;
     }
 
     public static int goatWidth(int scale) {
-        return GOAT.getWidth() * scale;
+        return goat(Skin.CLASSIC, 0, false).getWidth() * scale;
     }
 
     public static int goatHeight(int scale) {
-        return GOAT.getHeight() * scale;
+        return goat(Skin.CLASSIC, 0, false).getHeight() * scale;
     }
 
     public static void drawGoat(Graphics2D g, int x, int y, boolean faceLeft, int scale) {
-        BufferedImage img = faceLeft ? GOAT_LEFT : GOAT;
+        drawGoat(g, x, y, faceLeft, scale, 0);
+    }
+
+    public static void drawGoat(Graphics2D g, int x, int y, boolean faceLeft, int scale, int frame) {
+        drawGoat(g, x, y, faceLeft, scale, frame, Skin.CLASSIC);
+    }
+
+    /** Draws walking frame 0 or 1 in the given skin. */
+    public static void drawGoat(Graphics2D g, int x, int y, boolean faceLeft, int scale, int frame, Skin skin) {
+        BufferedImage img = goat(skin, frame, faceLeft);
         g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
                 RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
         // Soft pixel shadow under the hooves.
@@ -383,6 +498,28 @@ public final class MountainArt {
         g.setColor(Color.BLACK);
         g.fillRect(x + 2 * scale, y + img.getHeight() * scale, (img.getWidth() - 4) * scale, scale);
         g.setComposite(old);
+        g.drawImage(img, x, y, img.getWidth() * scale, img.getHeight() * scale, null);
+    }
+
+    // ---------------------------------------------------------------- sprites
+
+    /** Builds a sprite from rows of codes; each code maps to the colour at the same index. */
+    public static BufferedImage sprite(String[] rows, String codes, int... colors) {
+        int h = rows.length;
+        int w = rows[0].length();
+        BufferedImage img = new BufferedImage(w, h, BufferedImage.TYPE_INT_ARGB);
+        for (int y = 0; y < h; y++) {
+            for (int x = 0; x < w; x++) {
+                int i = codes.indexOf(rows[y].charAt(x));
+                if (i >= 0) img.setRGB(x, y, 0xff000000 | colors[i]);
+            }
+        }
+        return img;
+    }
+
+    public static void drawSprite(Graphics2D g, BufferedImage img, int x, int y, int scale) {
+        g.setRenderingHint(RenderingHints.KEY_INTERPOLATION,
+                RenderingHints.VALUE_INTERPOLATION_NEAREST_NEIGHBOR);
         g.drawImage(img, x, y, img.getWidth() * scale, img.getHeight() * scale, null);
     }
 

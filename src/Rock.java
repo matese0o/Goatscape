@@ -13,9 +13,17 @@ import java.util.Random;
  * against the warm brown cliff.
  */
 public class Rock {
-    public int x, y;
-    private final int width;
-    private final int height;
+    /** PEBBLE: small and fast. ROCK: the regular boulder. BOULDER: huge, slower, bounces off the cliff edges. */
+    public enum Kind { PEBBLE, ROCK, BOULDER }
+
+    public final Kind kind;
+    public double x, y;
+    /** Fall speed in px per frame. */
+    public final double speed;
+    /** Sideways speed; only boulders move sideways. */
+    public double vx;
+    public final int width;
+    public final int height;
     private final BufferedImage sprite;
     private final BufferedImage shadow;
     private static final Random RAND = new Random();
@@ -27,13 +35,16 @@ public class Rock {
         {0xfff2f4f6, 0xffbcc4cc, 0xff87929c, 0xff5a646e}, // granite
     };
 
-    public Rock(int x, int y, int width, int height) {
+    public Rock(Kind kind, double x, double y, int width, int height, double speed, double vx) {
+        this.kind = kind;
         this.x = x;
         this.y = y;
+        this.speed = speed;
+        this.vx = vx;
         this.width = width;
         this.height = height;
-        boolean[][] mask = buildMask(Math.max(6, width / MountainArt.P),
-                Math.max(6, height / MountainArt.P));
+        boolean[][] mask = buildMask(Math.max(4, width / MountainArt.P),
+                Math.max(4, height / MountainArt.P));
         sprite = buildSprite(mask);
         shadow = buildShadow(mask);
     }
@@ -112,8 +123,8 @@ public class Rock {
     public void draw(Graphics g) {
         Graphics2D g2 = (Graphics2D) g;
         int s = MountainArt.P;
-        int sx = MountainArt.snap(x) - s; // compensate for the outline padding
-        int sy = MountainArt.snap(y) - s;
+        int sx = MountainArt.snap((int) x) - s; // compensate for the outline padding
+        int sy = MountainArt.snap((int) y) - s;
         int dw = sprite.getWidth() * s;
         int dh = sprite.getHeight() * s;
 
@@ -132,6 +143,6 @@ public class Rock {
     }
 
     public Rectangle getBounds() {
-        return new Rectangle(x + width / 5, y + height / 5, width * 3 / 5, height * 3 / 5);
+        return new Rectangle((int) x + width / 5, (int) y + height / 5, width * 3 / 5, height * 3 / 5);
     }
 }

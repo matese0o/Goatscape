@@ -19,8 +19,8 @@ public class GameFrame extends JFrame {
         // Resizable, with the green button / Ctrl+Cmd+F entering macOS full screen.
         setResizable(true);
         getRootPane().putClientProperty("apple.awt.fullscreenable", true);
-        setMinimumSize(new Dimension(START_SIZE, START_SIZE));
-        setSize(START_SIZE, START_SIZE);
+        setMinimumSize(new Dimension(START_SIZE, 760));
+        setSize(START_SIZE, 760);
 
         setDefaultCloseOperation(JFrame.EXIT_ON_CLOSE);
         setLocationRelativeTo(null);
@@ -43,6 +43,14 @@ public class GameFrame extends JFrame {
                 && Taskbar.getTaskbar().isSupported(Taskbar.Feature.ICON_IMAGE)) {
             Taskbar.getTaskbar().setIconImage(icon);
         }
+    }
+
+    /** Switches to another screen and gives it keyboard focus. */
+    public void showPanel(JComponent panel) {
+        setContentPane(panel);
+        revalidate();
+        repaint();
+        SwingUtilities.invokeLater(panel::requestFocusInWindow);
     }
 
     public MusicManager getMusicManager() {
