@@ -9,6 +9,8 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
 
     private static final int BUTTON_W = 200;
     private static final int BUTTON_H = 90;
+    /** Width of the climbable cliff in the original 700px window. */
+    private static final int BASE_PLAY_W = 476;
 
     private GameFrame frame;
     private MusicManager music;
@@ -79,9 +81,14 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
         SwingUtilities.invokeLater(() -> requestFocusInWindow());
 
         addComponentListener(new java.awt.event.ComponentAdapter() {
+            @Override
             public void componentResized(java.awt.event.ComponentEvent evt) {
-                initPlayer();
-                removeComponentListener(this);
+                if (player == null) initPlayer();
+                else keepPlayerOnCliff();
+                // Keep pause / game-over buttons centred when the window changes size.
+                if (paused) showButtons(resumeBtn, exitBtn);
+                else if (gameOver) showButtons(playAgainBtn, exitBtn);
+                repaint();
             }
         });
     }
@@ -126,6 +133,14 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
         int playerX = (getWidth() - Player.WIDTH) / 2;
         int playerY = getHeight() - Player.HEIGHT - 60;
         player = new Player(playerX, playerY);
+    }
+
+    /** Keeps the goat on the cliff face, including after the window is resized. */
+    private void keepPlayerOnCliff() {
+        int left = MountainArt.playLeft(getWidth());
+        int right = MountainArt.playRight(getWidth());
+        player.x = Math.max(left, Math.min(player.x, right - Player.WIDTH));
+        player.y = Math.max(0, Math.min(player.y, getHeight() - Player.HEIGHT));
     }
 
     private void showButtons(JButton... buttons) {
@@ -174,13 +189,14 @@ public class GamePanel extends JPanel implements ActionListener, KeyListener {
         player.moving = movingLeft || movingRight || movingUp || movingDown;
         player.update();
 
-        // Keep the goat on the cliff face.
-        int left = MountainArt.playLeft();
+        keepPlayerOnCliff();
+        int left = MountainArt.playLeft(getWidth());
         int right = MountainArt.playRight(getWidth());
-        player.x = Math.max(left, Math.min(player.x, right - Player.WIDTH));
-        player.y = Math.max(0, Math.min(player.y, getHeight() - Player.HEIGHT));
 
-        if (rand.nextInt(40) == 0) {
+        // One rock per ~40 frames on the original 700px window; wider cliffs get
+        // proportionally more rocks so the danger per metre stays the same.
+        double spawnChance = (right - left) / (double) BASE_PLAY_W / 40.0;
+        if (rand.nextDouble() < spawnChance) {
             int rockWidth = 40 + rand.nextInt(36);
             int rockHeight = 36 + rand.nextInt(32);
             int newX = left + rand.nextInt(Math.max(1, right - left - rockWidth));

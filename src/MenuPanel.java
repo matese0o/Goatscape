@@ -77,7 +77,7 @@ public class MenuPanel extends JPanel {
         int panelHeight = getHeight();
 
         int spacing = 10;
-        int startY = (panelHeight / 2) + 92;
+        int startY = top() + 336 + 92;
 
         playBtn.setLocation((panelWidth - playBtn.getWidth()) / 2, startY);
         exitBtn.setLocation((panelWidth - exitBtn.getWidth()) / 2, startY + playBtn.getHeight() + spacing);
@@ -125,6 +125,11 @@ public class MenuPanel extends JPanel {
         g.fillRect(x + w - 10 * s, y, 5 * s, s);
     }
 
+    /** Top of the original 672px-tall menu layout, centred vertically in bigger windows. */
+    private int top() {
+        return Math.max(0, (getHeight() - 672) / 2);
+    }
+
     public static int getHighscore() {
         return highestScore;
     }
@@ -139,26 +144,27 @@ public class MenuPanel extends JPanel {
         // Title card
         int cardW = 460;
         int cardX = (getWidth() - cardW) / 2;
-        MountainArt.drawPanel(g2d, cardX, 70, cardW, 180);
+        int top = top();
+        MountainArt.drawPanel(g2d, cardX, top + 70, cardW, 180);
 
         g2d.setFont(customFont != null
                 ? customFont.deriveFont(Font.PLAIN, 84f)
                 : new Font("Arial", Font.BOLD, 72));
         String title = "PEAKFALL";
         int titleWidth = g2d.getFontMetrics().stringWidth(title);
-        MountainArt.drawShadowText(g2d, title, (getWidth() - titleWidth) / 2, 150, Color.WHITE);
+        MountainArt.drawShadowText(g2d, title, (getWidth() - titleWidth) / 2, top + 150, Color.WHITE);
 
         g2d.setFont(customFont != null
                 ? customFont.deriveFont(Font.PLAIN, 28f)
                 : new Font("Arial", Font.PLAIN, 24));
         String subtitle = "Climb high. Dodge the rocks.";
         int subtitleWidth = g2d.getFontMetrics().stringWidth(subtitle);
-        MountainArt.drawShadowText(g2d, subtitle, (getWidth() - subtitleWidth) / 2, 190,
+        MountainArt.drawShadowText(g2d, subtitle, (getWidth() - subtitleWidth) / 2, top + 190,
                 new Color(225, 235, 245));
 
         String scoreText = "BEST  " + highestScore;
         int scoreWidth = g2d.getFontMetrics().stringWidth(scoreText);
-        MountainArt.drawShadowText(g2d, scoreText, (getWidth() - scoreWidth) / 2, 228,
+        MountainArt.drawShadowText(g2d, scoreText, (getWidth() - scoreWidth) / 2, top + 228,
                 new Color(255, 214, 102));
 
         // Hero goat standing on a boulder ledge.
@@ -166,7 +172,7 @@ public class MenuPanel extends JPanel {
         int goatW = MountainArt.goatWidth(scale);
         int goatH = MountainArt.goatHeight(scale);
         int goatX = MountainArt.snap((getWidth() - goatW) / 2);
-        int ledgeY = MountainArt.snap(getHeight() / 2 + 44);
+        int ledgeY = MountainArt.snap(top + 336 + 44);
         drawLedge(g2d, goatX - 36, ledgeY, goatW + 72);
         MountainArt.drawGoat(g2d, goatX, ledgeY - goatH, false, scale);
         g2d.dispose();

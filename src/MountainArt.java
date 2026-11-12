@@ -50,14 +50,23 @@ public final class MountainArt {
         return (width + P - 1) / P;
     }
 
+    /** Left edge of the cliff in art pixels: the cliff spans the window, like the old road. */
+    private static int cliffLeft(int w) {
+        return WALL_INSET;
+    }
+
+    private static int cliffRight(int w) {
+        return w - cliffLeft(w);
+    }
+
     /** Left edge (screen px) of the always-climbable part of the cliff. */
-    public static int playLeft() {
-        return WALL_INSET * P;
+    public static int playLeft(int width) {
+        return cliffLeft(lowW(width)) * P;
     }
 
     /** Right edge (screen px) of the always-climbable part of the cliff. */
     public static int playRight(int width) {
-        return (lowW(width) - WALL_INSET) * P;
+        return cliffRight(lowW(width)) * P;
     }
 
     /** Rounds a screen coordinate down onto the art-pixel grid. */
@@ -223,8 +232,8 @@ public final class MountainArt {
     private static void drawCliffFace(int w, int h, int scroll) {
         for (int y = 0; y < h; y++) {
             int wy = y - scroll;
-            int left = WALL_INSET - wobble(wy, 11);
-            int right = w - WALL_INSET + wobble(wy, 23);
+            int left = cliffLeft(w) - wobble(wy, 11);
+            int right = cliffRight(w) + wobble(wy, 23);
             int from = Math.max(0, left);
             int to = Math.min(w, right);
             for (int x = from; x < to; x++) {
