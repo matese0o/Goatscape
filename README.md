@@ -7,7 +7,7 @@
 A pixel-art Java Swing arcade game. Guide a sure-footed mountain goat up a
 cliff and dodge everything the mountain throws down at you.
 
-Made by **Goatscape Arcade**.
+Made by **Peakfall Arcade**.
 
 ## Features
 

@@ -178,7 +178,7 @@ public class MenuPanel extends JPanel {
 
         // Credits, tucked into the bottom-right corner.
         g2d.setFont(Fonts.get(20f));
-        String credits = "by Goatscape Arcade";
+        String credits = "by Peakfall Arcade";
         g2d.setColor(new Color(0, 0, 0, 120));
         int crw = g2d.getFontMetrics().stringWidth(credits);
         g2d.drawString(credits, w - crw - 14, getHeight() - 12);
