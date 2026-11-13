@@ -33,7 +33,7 @@ public class GameFrame extends JFrame {
         setVisible(true);
     }
 
-    /** Uses the Peakfall logo for the window, the Windows taskbar and the macOS Dock. */
+    /** Uses the Goatscape logo for the window, the Windows taskbar and the macOS Dock. */
     private void setAppIcon() {
         URL url = getClass().getResource("/assets/icon.png");
         if (url == null) return;

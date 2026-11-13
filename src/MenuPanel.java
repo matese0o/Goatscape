@@ -148,9 +148,9 @@ public class MenuPanel extends JPanel {
         int cardW = 520;
         MountainArt.drawPanel(g2d, cx - cardW / 2, t + 16, cardW, 144);
         g2d.setFont(Fonts.get(104f));
-        center(g2d, "PEAKFALL", cx, t + 100, Color.WHITE);
+        center(g2d, "GOATSCAPE", cx, t + 100, Color.WHITE);
         g2d.setFont(Fonts.get(28f));
-        center(g2d, "Climb high. Dodge the rocks.", cx, t + 140, new Color(225, 235, 245));
+        center(g2d, "Climb. Dash. Don't look down.", cx, t + 140, new Color(225, 235, 245));
 
         // Stats row.
         String[][] stats = {
@@ -175,6 +175,15 @@ public class MenuPanel extends JPanel {
         int hw = g2d.getFontMetrics().stringWidth(hint);
         MountainArt.drawPanel(g2d, cx - hw / 2 - 18, t + 664, hw + 36, 36);
         center(g2d, hint, cx, t + 690, new Color(235, 242, 250));
+
+        // Credits, tucked into the bottom-right corner.
+        g2d.setFont(Fonts.get(20f));
+        String credits = "by Goatscape Arcade";
+        g2d.setColor(new Color(0, 0, 0, 120));
+        int crw = g2d.getFontMetrics().stringWidth(credits);
+        g2d.drawString(credits, w - crw - 14, getHeight() - 12);
+        g2d.setColor(new Color(225, 235, 245, 200));
+        g2d.drawString(credits, w - crw - 16, getHeight() - 14);
         g2d.dispose();
     }
 

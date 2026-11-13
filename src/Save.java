@@ -5,7 +5,7 @@ import java.util.prefs.Preferences;
  * (a plist on macOS, the registry on Windows).
  */
 public final class Save {
-    private static final Preferences PREFS = Preferences.userRoot().node("peakfall");
+    private static final Preferences PREFS = Preferences.userRoot().node("goatscape");
 
     private Save() {}
 

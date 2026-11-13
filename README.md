@@ -1,9 +1,13 @@
-# Peakfall
+# Goatscape
 
-<img src="src/assets/icon.png" alt="Peakfall icon" width="128" align="right">
+*Climb. Dash. Don't look down.*
+
+<img src="src/assets/icon.png" alt="Goatscape icon" width="128" align="right">
 
 A pixel-art Java Swing arcade game. Guide a sure-footed mountain goat up a
 cliff and dodge everything the mountain throws down at you.
+
+Made by **Goatscape Arcade**.
 
 ## Features
 
@@ -61,19 +65,19 @@ Install the **Extension Pack for Java**, open the project folder, and run
 ### macOS (Terminal)
 
 ```sh
-cd path/to/Peakfall
+cd path/to/Goatscape
 javac -d out src/*.java
-java -Xdock:icon=src/assets/icon.png -Xdock:name=Peakfall -cp "out:src" App
+java -Xdock:icon=src/assets/icon.png -Xdock:name=Goatscape -cp "out:src" App
 ```
 
-The `-Xdock` options show the Peakfall icon and name in the Dock as soon as
+The `-Xdock` options show the Goatscape icon and name in the Dock as soon as
 the game starts. Without them, the game still runs, but the Java icon shows
-for a moment before the Peakfall icon replaces it.
+for a moment before the Goatscape icon replaces it.
 
 ### Windows (Command Prompt or PowerShell)
 
 ```bat
-cd path\to\Peakfall
+cd path\to\Goatscape
 javac -d out src\*.java
 java -cp "out;src" App
 ```
